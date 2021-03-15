@@ -33,9 +33,7 @@ string LinuxParser::OperatingSystem() {
   std::string targetfile = "/etc/os-release";
   std::ifstream myfile;
   myfile.open (targetfile);
-  if (!myfile){
-    return "OS NOT FOUND";
-  }
+  assert(myfile);
 
   // Iterate over each line until file ends or os_regex_line found
   while (!std::regex_match(line, linematch, rgx)) {
@@ -54,9 +52,7 @@ string LinuxParser::Kernel() {
 
   std::ifstream myfile;
   myfile.open (filename);
-  if (!myfile){
-    return "KERNEL NOT FOUND";
-  }
+  assert(myfile);
   
   std::regex rgx("^Linux\\s+version\\s([\\w\\.\\-]+)\\s.*$");
   std::smatch linematch;
@@ -112,9 +108,7 @@ float LinuxParser::MemoryUtilization() {
   // Open file and ensure it exists
   std::ifstream myfile;
   myfile.open(filename);
-  if (!myfile){
-    return -1.0;
-  }
+  assert(myfile);
 
   for (int linenumber = 0; linenumber < memory_utilization.size(); linenumber++) {
     getline(myfile, fileline);
@@ -136,9 +130,7 @@ long LinuxParser::UpTime() {
   
   std::ifstream myfile;
   myfile.open(filename);
-  if (!myfile){
-    return -1;
-  }
+  assert(myfile);
   
   getline(myfile, line);
   assert(std::regex_match(line, linematch, rgx));
@@ -165,23 +157,19 @@ vector<int> LinuxParser::CpuUtilization() {
   std::vector<int> cpu_usages(10, -1); 
   std::ifstream myfile;
   myfile.open ("/proc/stat");
-  if (myfile) {
-    getline(myfile, line);
-    char char_array[line.length()];
-    strcpy(char_array, line.c_str());
-    char *token = strtok(char_array, " "); 
-    for (int index = 0; index < cpu_usages.size(); index ++) {
-      if (index > 0) {
-        cpu_usages[index-1] = std::stoi(token);
-      };
-      token = strtok(NULL, " "); 
-    }
-    myfile.close();
-    return cpu_usages; 
-  } else {
-    myfile.close();
-    return {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+  assert(myfile);
+  getline(myfile, line);
+  char char_array[line.length()];
+  strcpy(char_array, line.c_str());
+  char *token = strtok(char_array, " "); 
+  for (int index = 0; index < cpu_usages.size(); index ++) {
+    if (index > 0) {
+      cpu_usages[index-1] = std::stoi(token);
+    };
+    token = strtok(NULL, " "); 
   }
+  myfile.close();
+  return cpu_usages; 
 }
 
 // TODO: Read and return the total number of processes
@@ -205,9 +193,8 @@ std::string LinuxParser::Command(int pid) {
   std::string cmdline{""};
   std::ifstream myfile;
   myfile.open(file_location);
-  if (!myfile){
-    return "NONE";
-  }
+  assert(myfile);
+  
   getline(myfile, cmdline);
   myfile.close();
   return cmdline; 
@@ -220,24 +207,25 @@ float LinuxParser::Cpu(int pid, int uptime) {
   std::string line;
   std::fstream myfile;
   myfile.open(file_location);
-  if (!myfile){
-    return -1;
-  }
+  assert(myfile);
   
   getline(myfile, line);
   std::vector<std::string> line_strs;
   boost::split(line_strs, line, boost::is_any_of("\t "));
   myfile.close();
-  int utime = std::stoi(line_strs[13]);
-  int stime = std::stoi(line_strs[14]);
-  int cutime = std::stoi(line_strs[15]);
-  int cstime = std::stoi(line_strs[17]);
-  int startt = std::stoi(line_strs[21]);
-  float HERTZ  = sysconf(_SC_CLK_TCK);
+  
+  int utime   = std::stoi(line_strs[13]);
+  int stime   = std::stoi(line_strs[14]);
+  int cutime  = std::stoi(line_strs[15]);
+  int cstime  = std::stoi(line_strs[17]);
+  int startt  = std::stoi(line_strs[21]);
+  float HERTZ = sysconf(_SC_CLK_TCK);
   
   int total_time = utime + stime + cutime + cstime;
   float seconds  = (float)uptime - ((float)startt / HERTZ);
-  return 100 * (((float)total_time / HERTZ) / seconds);
+  float cpu_util = ((float)total_time / HERTZ ) / seconds;
+    
+  return cpu_util;
 }
 
 // TODO: Read and return the memory used by a process
@@ -269,28 +257,28 @@ string LinuxParser::User(int uid) {
 // TODO: Read and return the uptime of a process
 // REMOVE: [[maybe_unused]] once you define the function
 long int LinuxParser::UpTime(int pid) { 
-  
-  // intialize file and ensur it exists
-  std::ifstream myfile;
-  myfile.open ("/proc/" + std::to_string(pid) + "/stat");
-  if (!myfile){
-    return -1;
-  }
 
-  // setup the line as a string and char object
+  // Intialize the two file reading variables needed
+  std::string ss_key;
   std::string line;
-  getline(myfile, line);
-  char char_array[line.length()];
-  strcpy(char_array, line.c_str());
 
-  // iterateve x times using the token iterator
-  char *token = strtok(char_array, " "); 
-  for (int index = 0; index < 22; index ++) {
-    token = strtok(NULL, " ");
+  // Setup filestream and ensure it exists
+  std::ifstream filestream("/proc/" + std::to_string(pid) + "/stat") ;
+  assert(filestream.is_open());
+   
+  while ( std::getline(filestream,line) ) {
+    std::istringstream linestream(line);
+    int index = 0;
+    while(linestream >> ss_key ) {
+      if (index == 21) {
+        long int system_uptime =  LinuxParser::UpTime();
+        long int process_uptime = system_uptime - std::stol(ss_key) / sysconf(_SC_CLK_TCK);
+        return process_uptime;
+      }
+      index++;
+    }
   }
-
-  // return the extracted token as int
-  return std::stol(token);
+  
 }
 
 std::string LinuxParser::LineByLineRegexGetter(std::string file_location, std::regex rgx){
@@ -300,9 +288,7 @@ std::string LinuxParser::LineByLineRegexGetter(std::string file_location, std::r
   std::ifstream myfile;
   std::string line;
   myfile.open(file_location);
-  if (!myfile){
-    return "NONE";
-  };
+  assert(myfile);
   
   // Iterate over each line of file until a hit is obtained
   std::smatch rgx_match;

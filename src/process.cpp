@@ -25,7 +25,7 @@ void Process::CpuUtilization(int pid) {
 }
 
 void Process::UpTime(int pid) {
-  up_time = LinuxParser::UpTime(pid)/sysconf(_SC_CLK_TCK);
+  up_time = LinuxParser::UpTime(pid);
 }
 
 void Process::Ram(int pid) {
@@ -58,15 +58,12 @@ string Process::Command() { return command; }
 string Process::Ram() { return std::to_string(ram_utilization); }
 
 // TODO: Return the user (name) that generated this process
-string Process::User() { 
-  return username; 
-}
+string Process::User() { return username; }
 
 // TODO: Return the age of this process (in seconds)
 long int Process::UpTime() { return up_time; }
 
 // TODO: Overload the "less than" comparison operator for Process objects
-// REMOVE: [[maybe_unused]] once you define the function
 bool Process::operator<(Process const& a) const { 
   return (Process::CpuUtilization() < a.CpuUtilization());
 }
