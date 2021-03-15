@@ -1,6 +1,5 @@
 #ifndef SYSTEM_PARSER_H
 #define SYSTEM_PARSER_H
-
 #include <fstream>
 #include <regex>
 #include <string>
@@ -40,18 +39,28 @@ enum CPUStates {
   kGuest_,
   kGuestNice_
 };
-std::vector<std::string> CpuUtilization();
+
+std::vector<int> CpuUtilization();
 long Jiffies();
 long ActiveJiffies();
 long ActiveJiffies(int pid);
 long IdleJiffies();
-
+  
+// Additional functions
+float CalculateMemoryUtilization(const int& memtotal, const int& memfree);
+int GetProcessNumbers(std::string filename, std::regex rgx);
+std::string LineByLineRegexGetter(std::string file_location, std::regex rgx);
+  
 // Processes
 std::string Command(int pid);
-std::string Ram(int pid);
-std::string Uid(int pid);
+int Ram(int pid);
+float Cpu(int pid, int uptime);
+std::string Uid(int uid);
 std::string User(int pid);
 long int UpTime(int pid);
+
+
+  
 };  // namespace LinuxParser
 
 #endif
