@@ -113,7 +113,7 @@ float LinuxParser::MemoryUtilization() {
   for (int linenumber = 0; linenumber < memory_utilization.size(); linenumber++) {
     getline(myfile, fileline);
     assert(std::regex_match(fileline, memory_info, rgx));
-    memory_utilization[linenumber] = std::stoi(memory_info[1]);
+    memory_utilization[linenumber] = std::stof(memory_info[1]);
   }
   myfile.close();
   
@@ -214,7 +214,6 @@ float LinuxParser::Cpu(int pid, int uptime) {
   std::vector<std::string> line_strs;
   boost::split(line_strs, line, boost::is_any_of("\t "));
   myfile.close();
-  
   int utime = std::stoi(line_strs[13]);
   int stime = std::stoi(line_strs[14]);
   int cutime = std::stoi(line_strs[15]);
@@ -233,7 +232,7 @@ int LinuxParser::Ram(int pid) {
   std::string file_location = "/proc/" + std::to_string(pid) + "/status";
   std::regex rgx("^VmSize:\\s+(\\d+)\\s+kB\\s?$");
   std:string ram_useage = LinuxParser::LineByLineRegexGetter(file_location, rgx);
-  return std::stoi(ram_useage) / 1000; 
+  return std::stol(ram_useage) / 1000; 
 }
 
 // TODO: Read and return the user ID associated with a process
@@ -275,7 +274,7 @@ long int LinuxParser::UpTime(int pid) {
   }
 
   // return the extracted token as int
-  return std::stoi(token);
+  return std::stol(token);
 }
 
 std::string LinuxParser::LineByLineRegexGetter(std::string file_location, std::regex rgx){
