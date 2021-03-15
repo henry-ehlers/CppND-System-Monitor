@@ -33,7 +33,9 @@ string LinuxParser::OperatingSystem() {
   std::string targetfile = "/etc/os-release";
   std::ifstream myfile;
   myfile.open (targetfile);
-  assert(myfile);
+  if (!myfile){
+    return "OS NOT FOUND";
+  }
 
   // Iterate over each line until file ends or os_regex_line found
   while (!std::regex_match(line, linematch, rgx)) {
@@ -52,7 +54,9 @@ string LinuxParser::Kernel() {
 
   std::ifstream myfile;
   myfile.open (filename);
-  assert(myfile);
+  if (!myfile){
+    return "KERNEL NOT FOUND";
+  }
   
   std::regex rgx("^Linux\\s+version\\s([\\w\\.\\-]+)\\s.*$");
   std::smatch linematch;
@@ -108,7 +112,9 @@ float LinuxParser::MemoryUtilization() {
   // Open file and ensure it exists
   std::ifstream myfile;
   myfile.open(filename);
-  assert(myfile);
+  if (!myfile){
+    return -1.0;
+  }
 
   for (int linenumber = 0; linenumber < memory_utilization.size(); linenumber++) {
     getline(myfile, fileline);
@@ -130,7 +136,9 @@ long LinuxParser::UpTime() {
   
   std::ifstream myfile;
   myfile.open(filename);
-  assert(myfile);
+  if (!myfile){
+    return -1;
+  }
   
   getline(myfile, line);
   assert(std::regex_match(line, linematch, rgx));
@@ -168,10 +176,12 @@ vector<int> LinuxParser::CpuUtilization() {
       };
       token = strtok(NULL, " "); 
     }
+    myfile.close();
+    return cpu_usages; 
+  } else {
+    myfile.close();
+    return {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
   }
-  myfile.close();
-  return cpu_usages; 
-
 }
 
 // TODO: Read and return the total number of processes
@@ -195,7 +205,9 @@ std::string LinuxParser::Command(int pid) {
   std::string cmdline{""};
   std::ifstream myfile;
   myfile.open(file_location);
-  assert(myfile);
+  if (!myfile){
+    return "NONE";
+  }
   getline(myfile, cmdline);
   myfile.close();
   return cmdline; 
@@ -208,7 +220,9 @@ float LinuxParser::Cpu(int pid, int uptime) {
   std::string line;
   std::fstream myfile;
   myfile.open(file_location);
-  assert(myfile);
+  if (!myfile){
+    return -1;
+  }
   
   getline(myfile, line);
   std::vector<std::string> line_strs;
@@ -259,7 +273,9 @@ long int LinuxParser::UpTime(int pid) {
   // intialize file and ensur it exists
   std::ifstream myfile;
   myfile.open ("/proc/" + std::to_string(pid) + "/stat");
-  assert(myfile);
+  if (!myfile){
+    return -1;
+  }
 
   // setup the line as a string and char object
   std::string line;
@@ -284,7 +300,9 @@ std::string LinuxParser::LineByLineRegexGetter(std::string file_location, std::r
   std::ifstream myfile;
   std::string line;
   myfile.open(file_location);
-  assert(myfile);
+  if (!myfile){
+    return "NONE";
+  };
   
   // Iterate over each line of file until a hit is obtained
   std::smatch rgx_match;
