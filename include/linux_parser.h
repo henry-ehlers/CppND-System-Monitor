@@ -49,7 +49,7 @@ long IdleJiffies();
 // Additional functions
 float CalculateMemoryUtilization(const int& memtotal, const int& memfree);
 int GetProcessNumbers(std::string filename, std::regex rgx);
-std::string LineByLineRegexGetter(std::string file_location, std::regex rgx);
+std::string LineByLineRegexGetter(std::string file_location, std::regex rgx, std::string std_return);
   
 // Processes
 std::string Command(int pid);

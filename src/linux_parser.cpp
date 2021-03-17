@@ -21,48 +21,30 @@ using std::vector;
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::OperatingSystem() {
   
-  // String objects for file reading and output
-  std::string os_system;
-  std::string line;
-  
-  // Regex Objects required
-  std::regex rgx("^PRETTY_NAME=\"(.+)\"$");
-  std::smatch linematch;
-
-  // File Handling
+  // Specify file and regex patterns
   std::string targetfile = "/etc/os-release";
-  std::ifstream myfile;
-  myfile.open (targetfile);
-  assert(myfile);
+  std::regex rgx("^PRETTY_NAME=\"(.+)\"$");
 
-  // Iterate over each line until file ends or os_regex_line found
-  while (!std::regex_match(line, linematch, rgx)) {
-    getline(myfile, line);
-  };
-  os_system = linematch[1]; //returns only the match group and 'destroys' the linematch object
-  myfile.close();
+  // Find regex match in specified file
+  std::string os_system = LineByLineRegexGetter(targetfile, rgx, "OS NOT FOUND");
+
+  // Return OS string
   return os_system;
+
+  
 }
 
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::Kernel() {
-  std::string filename = "/proc/version";
-  std::string line;
-  std::string kernel;
 
-  std::ifstream myfile;
-  myfile.open (filename);
-  assert(myfile);
-  
+  // Specify file and regex patterns
+  std::string targetfile = "/proc/version";
   std::regex rgx("^Linux\\s+version\\s([\\w\\.\\-]+)\\s.*$");
-  std::smatch linematch;
   
-  while (!std::regex_match(line, linematch, rgx)) {
-    getline(myfile, line);
-  };
-  kernel = linematch[1];
-  myfile.close();
+  // Find regex match in specified file
+  std::string kernel = LineByLineRegexGetter(targetfile, rgx, "KERNEL NOT FOUND");
 
+  // Return OS string
   return kernel;
 }
 
@@ -108,12 +90,15 @@ float LinuxParser::MemoryUtilization() {
   // Open file and ensure it exists
   std::ifstream myfile;
   myfile.open(filename);
-  assert(myfile);
-
-  for (int linenumber = 0; linenumber < memory_utilization.size(); linenumber++) {
-    getline(myfile, fileline);
-    assert(std::regex_match(fileline, memory_info, rgx));
-    memory_utilization[linenumber] = std::stof(memory_info[1]);
+  if(myfile){
+    for (int linenumber = 0; linenumber < memory_utilization.size(); linenumber++) {
+      getline(myfile, fileline);
+      if(std::regex_match(fileline, memory_info, rgx)) {
+        memory_utilization[linenumber] = std::stof(memory_info[1]);
+      }
+    } 
+  } else {
+    memory_utilization = {-1, -1};
   }
   myfile.close();
   
@@ -122,20 +107,16 @@ float LinuxParser::MemoryUtilization() {
 
 // TODO: Read and return the system uptime
 long LinuxParser::UpTime() { 
-  std::string filename = "/proc/uptime";
-  std::string line;
-  
+
+  // Specify target file and target rgx
+  std::string targetfile = "/proc/uptime";
   std::regex rgx("^([\\d\\.]+)\\s+[\\d+\\.]+\\s*$");
-  std::smatch linematch;
   
-  std::ifstream myfile;
-  myfile.open(filename);
-  assert(myfile);
+  // find target in file
+  std::string uptime = LinuxParser::LineByLineRegexGetter(targetfile, rgx, "-1");
   
-  getline(myfile, line);
-  assert(std::regex_match(line, linematch, rgx));
-  
-  return std::stol(linematch[1]); 
+  // return converted string
+  return std::stol(uptime); 
 }
 
 // // TODO: Read and return the number of jiffies for the system
@@ -157,17 +138,18 @@ vector<int> LinuxParser::CpuUtilization() {
   std::vector<int> cpu_usages(10, -1); 
   std::ifstream myfile;
   myfile.open ("/proc/stat");
-  assert(myfile);
-  getline(myfile, line);
-  char char_array[line.length()];
-  strcpy(char_array, line.c_str());
-  char *token = strtok(char_array, " "); 
-  for (int index = 0; index < cpu_usages.size(); index ++) {
-    if (index > 0) {
-      cpu_usages[index-1] = std::stoi(token);
-    };
-    token = strtok(NULL, " "); 
-  }
+  if (myfile) {
+    getline(myfile, line);
+    char char_array[line.length()];
+    strcpy(char_array, line.c_str());
+    char *token = strtok(char_array, " "); 
+    for (int index = 0; index < cpu_usages.size(); index ++) {
+      if (index > 0) {
+        cpu_usages[index-1] = std::stoi(token);
+      };
+      token = strtok(NULL, " "); 
+    }
+  } 
   myfile.close();
   return cpu_usages; 
 }
@@ -176,14 +158,14 @@ vector<int> LinuxParser::CpuUtilization() {
 int LinuxParser::TotalProcesses() {
   std::regex rgx("^processes\\s+(\\d+)");
   std::string filename = "/proc/stat";
-  return std::stoi(LinuxParser::LineByLineRegexGetter(filename, rgx));
+  return std::stoi(LinuxParser::LineByLineRegexGetter(filename, rgx, "-1"));
 }
 
 // TODO: Read and return the number of running processes
 int LinuxParser::RunningProcesses() {
   std::regex rgx("^procs_running\\s+(\\d+)");
   std::string filename = "/proc/stat";
-  return std::stoi(LinuxParser::LineByLineRegexGetter(filename, rgx));
+  return std::stoi(LinuxParser::LineByLineRegexGetter(filename, rgx, "-1"));
 }
 
 // TODO: Read and return the command associated with a process
@@ -193,9 +175,11 @@ std::string LinuxParser::Command(int pid) {
   std::string cmdline{""};
   std::ifstream myfile;
   myfile.open(file_location);
-  assert(myfile);
-  
-  getline(myfile, cmdline);
+  if (myfile) {
+    getline(myfile, cmdline);
+  } else {
+    cmdline = "CMDLINE NOT FOUND";
+  }
   myfile.close();
   return cmdline; 
 }
@@ -206,25 +190,28 @@ float LinuxParser::Cpu(int pid, int uptime) {
   
   std::string line;
   std::fstream myfile;
+  float cpu_util;
   myfile.open(file_location);
-  assert(myfile);
-  
-  getline(myfile, line);
-  std::vector<std::string> line_strs;
-  boost::split(line_strs, line, boost::is_any_of("\t "));
-  myfile.close();
-  
-  int utime   = std::stoi(line_strs[13]);
-  int stime   = std::stoi(line_strs[14]);
-  int cutime  = std::stoi(line_strs[15]);
-  int cstime  = std::stoi(line_strs[17]);
-  int startt  = std::stoi(line_strs[21]);
-  float HERTZ = sysconf(_SC_CLK_TCK);
-  
-  int total_time = utime + stime + cutime + cstime;
-  float seconds  = (float)uptime - ((float)startt / HERTZ);
-  float cpu_util = ((float)total_time / HERTZ ) / seconds;
+  if (myfile){
+    getline(myfile, line);
+    std::vector<std::string> line_strs;
+    boost::split(line_strs, line, boost::is_any_of("\t "));
+    myfile.close();
     
+    int utime   = std::stoi(line_strs[13]);
+    int stime   = std::stoi(line_strs[14]);
+    int cutime  = std::stoi(line_strs[15]);
+    int cstime  = std::stoi(line_strs[17]);
+    int startt  = std::stoi(line_strs[21]);
+    float HERTZ = sysconf(_SC_CLK_TCK);
+    
+    int total_time = utime + stime + cutime + cstime;
+    float seconds  = (float)uptime - ((float)startt / HERTZ);
+    cpu_util = ((float)total_time / HERTZ ) / seconds;
+  } else {
+    cpu_util = -1;
+  }
+  myfile.close();
   return cpu_util;
 }
 
@@ -233,7 +220,7 @@ float LinuxParser::Cpu(int pid, int uptime) {
 int LinuxParser::Ram(int pid) { 
   std::string file_location = "/proc/" + std::to_string(pid) + "/status";
   std::regex rgx("^VmSize:\\s+(\\d+)\\s+kB\\s?$");
-  std:string ram_useage = LinuxParser::LineByLineRegexGetter(file_location, rgx);
+  std:string ram_useage = LinuxParser::LineByLineRegexGetter(file_location, rgx, "-1");
   return std::stol(ram_useage) / 1000; 
 }
 
@@ -242,7 +229,7 @@ int LinuxParser::Ram(int pid) {
 string LinuxParser::Uid(int pid) { 
   std::string file_location = "/proc/" + std::to_string(pid) + "/status";
   std::regex rgx("^Uid:\\s+(\\d+)\\s+.+$");
-  return LinuxParser::LineByLineRegexGetter(file_location, rgx); 
+  return LinuxParser::LineByLineRegexGetter(file_location, rgx, "-1"); 
 }
 
 // TODO: Read and return the user associated with a process
@@ -251,7 +238,7 @@ string LinuxParser::User(int uid) {
   std::string rgx_expr = "^([\\w\\d]+):x+:" + std::to_string(uid) + ":" + std::to_string(uid) + ".+$";
   std::regex rgx(rgx_expr);
   std::string file_location = "/etc/passwd";
-  return LinuxParser::LineByLineRegexGetter(file_location, rgx); 
+  return LinuxParser::LineByLineRegexGetter(file_location, rgx, "USER NOT FOUND"); 
 }
 
 // TODO: Read and return the uptime of a process
@@ -264,39 +251,46 @@ long int LinuxParser::UpTime(int pid) {
 
   // Setup filestream and ensure it exists
   std::ifstream filestream("/proc/" + std::to_string(pid) + "/stat") ;
-  assert(filestream.is_open());
-   
-  while ( std::getline(filestream,line) ) {
-    std::istringstream linestream(line);
-    int index = 0;
-    while(linestream >> ss_key ) {
-      if (index == 21) {
-        long int system_uptime =  LinuxParser::UpTime();
-        long int process_uptime = system_uptime - std::stol(ss_key) / sysconf(_SC_CLK_TCK);
-        return process_uptime;
+  if(filestream.is_open()) {
+    while ( std::getline(filestream,line) ) {
+      std::istringstream linestream(line);
+      int index = 0;
+      while(linestream >> ss_key ) {
+        if (index == 21) {
+          long int system_uptime =  LinuxParser::UpTime();
+          long int process_uptime = system_uptime - std::stol(ss_key) / sysconf(_SC_CLK_TCK);
+          return process_uptime;
+        }
+        index++;
       }
-      index++;
     }
+  } else {
+    return -1;
   }
-  
 }
 
-std::string LinuxParser::LineByLineRegexGetter(std::string file_location, std::regex rgx){
+std::string LinuxParser::LineByLineRegexGetter(std::string file_location, std::regex rgx, std::string std_return){
   //std::cout  << file_location << "\n";
   
   // reate File object and ensure it exists
   std::ifstream myfile;
   std::string line;
+  std::string rgx_return;
+
+  // Find rgx in file (if it exists)
   myfile.open(file_location);
-  assert(myfile);
-  
-  // Iterate over each line of file until a hit is obtained
-  std::smatch rgx_match;
-  while (!std::regex_match(line, rgx_match, rgx)) {
-    getline(myfile, line);
+  if(myfile) {
+    std::smatch rgx_match; 
+    while (!std::regex_match(line, rgx_match, rgx)) {
+      getline(myfile, line); // Iterate over each line of file until a hit is obtained
+    }
+    rgx_return = rgx_match[1]; // Return only the Regex Catch
+  } else {
+    rgx_return = std_return;
   }
+
+  // Close file and return hit (if found)
   myfile.close();
+  return rgx_return;
   
-  // Return only the Regex Catch
-  return rgx_match[1]; 
 }
